@@ -38,7 +38,7 @@ brews:
     name: authing-aws
     tap:
       owner: dreampuf
-      name: homebrew
+      name: authing-aws
       branch: main
       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
 
@@ -52,7 +52,7 @@ brews:
 
     homepage: "https://github.com/dreampuf/authing-aws"
     description: "Fetching your AWS Access token via Authing"
-    license: "Apache 2.0"
+    license: "GPL-3.0 license"
 
     test: |
       system "#{bin}/program", "version"
