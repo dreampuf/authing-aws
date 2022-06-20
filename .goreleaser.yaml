@@ -40,6 +40,7 @@ brews:
       owner: dreampuf
       name: homebrew
       branch: main
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
 
     commit_author:
       name: dreampuf
