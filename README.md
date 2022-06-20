@@ -8,6 +8,14 @@ A CLI for fetching AWS Credentials on [Authing][5] via SAML Response.
 
 ```shell
 brew tap dreampuf/authing-aws
+brew install authing-aws
+```
+
+### Install via [Docker][6]
+
+```shell
+docker pull dreampuf/authing-aws:latest
+docker run -it --rm dreampuf/authing-aws:latest authing-aws #options
 ```
 
 ### Install manually
