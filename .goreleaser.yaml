@@ -38,7 +38,7 @@ brews:
     name: authing-aws
     tap:
       owner: dreampuf
-      name: authing-aws
+      name: homebrew-authing-aws
       branch: main
       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
 
