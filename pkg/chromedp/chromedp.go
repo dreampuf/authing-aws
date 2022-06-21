@@ -38,6 +38,37 @@ const AWS_SAML_ENDPOINT = "https://signin.aws.amazon.com/saml"
 const AWS_CN_SAML_ENDPOINT = "https://signin.amazonaws.cn/saml"
 const AWS_GOV_SAML_ENDPOINT = "https://signin.amazonaws-us-gov.com/saml"
 
+// same as chromedp but without headless, cause we need to control whether to display
+var defaultExecAllocatorOptions = [...]chromedp.ExecAllocatorOption{
+	chromedp.NoFirstRun,
+	chromedp.NoDefaultBrowserCheck,
+	//chromedp.Headless,
+
+	// After Puppeteer's default behavior.
+	chromedp.Flag("disable-background-networking", true),
+	chromedp.Flag("enable-features", "NetworkService,NetworkServiceInProcess"),
+	chromedp.Flag("disable-background-timer-throttling", true),
+	chromedp.Flag("disable-backgrounding-occluded-windows", true),
+	chromedp.Flag("disable-breakpad", true),
+	chromedp.Flag("disable-client-side-phishing-detection", true),
+	chromedp.Flag("disable-default-apps", true),
+	chromedp.Flag("disable-dev-shm-usage", true),
+	chromedp.Flag("disable-extensions", true),
+	chromedp.Flag("disable-features", "site-per-process,Translate,BlinkGenPropertyTrees"),
+	chromedp.Flag("disable-hang-monitor", true),
+	chromedp.Flag("disable-ipc-flooding-protection", true),
+	chromedp.Flag("disable-popup-blocking", true),
+	chromedp.Flag("disable-prompt-on-repost", true),
+	chromedp.Flag("disable-renderer-backgrounding", true),
+	chromedp.Flag("disable-sync", true),
+	chromedp.Flag("force-color-profile", "srgb"),
+	chromedp.Flag("metrics-recording-only", true),
+	chromedp.Flag("safebrowsing-disable-auto-update", true),
+	chromedp.Flag("enable-automation", true),
+	chromedp.Flag("password-store", "basic"),
+	chromedp.Flag("use-mock-keychain", true),
+}
+
 func newEntryPage(url string) AuthingEntryPage {
 	return AuthingEntryPage{
 		Version:   "2.28.22",
@@ -59,27 +90,21 @@ func newEntryPage(url string) AuthingEntryPage {
 }
 
 func VisitAuthing(ctx context.Context, opts VisitAuthingOptions) (string, error) {
+	logger := opts.Logger
 	authing := newEntryPage(opts.URL)
-	chromeOpts := append([]chromedp.ExecAllocatorOption{},
-		chromedp.NoFirstRun,
-		chromedp.DisableGPU,
-		chromedp.NoDefaultBrowserCheck,
-		chromedp.UserDataDir(opts.ProfileDir),
-		chromedp.Flag("disable-extensions", true),
-	)
+	chromeOpts := defaultExecAllocatorOptions[:]
 
 	if !opts.DisableHeadless {
 		chromeOpts = append(chromeOpts, chromedp.Headless)
 	}
 
-	logger := opts.Logger
 	allocCtx, cancel := chromedp.NewExecAllocator(ctx, chromeOpts...)
 	defer cancel()
 
-	// also set up a custom logger
 	var (
-		taskCtx    context.Context
-		taskCancel context.CancelFunc
+		taskCtx      context.Context
+		taskCancel   context.CancelFunc
+		samlresponse string
 	)
 	if opts.Debug {
 		taskCtx, taskCancel = chromedp.NewContext(allocCtx, chromedp.WithDebugf(logger.Printf))
@@ -87,9 +112,7 @@ func VisitAuthing(ctx context.Context, opts VisitAuthingOptions) (string, error)
 		taskCtx, taskCancel = chromedp.NewContext(allocCtx)
 	}
 	defer taskCancel()
-	var (
-		samlresponse string
-	)
+
 	chromedp.ListenBrowser(taskCtx, func(ev interface{}) {
 		switch ev := ev.(type) {
 		case *fetch.EventRequestPaused:
@@ -111,7 +134,7 @@ func VisitAuthing(ctx context.Context, opts VisitAuthingOptions) (string, error)
 	})
 
 	// tab btn: div[class^="styles_authing-tab-item"],div[class*=" styles_authing-tab-item"]:last-child
-	// ensure that the browser process is started
+	// to ensure that the browser process is started
 	var appItemNodes []*cdp.Node
 	appItemsMap := map[string]*cdp.Node{}
 	appItemsName := []string{}
@@ -134,9 +157,6 @@ func VisitAuthing(ctx context.Context, opts VisitAuthingOptions) (string, error)
 			if len(nodes) == 0 {
 				return nil
 			}
-			//if err := chromedp.Click(authing.Login.LoginTabBtn, chromedp.ByID).Do(ctx); err != nil {
-			//	return err
-			//}
 			if err := chromedp.SendKeys(authing.Login.UsernameInput, opts.Username, chromedp.ByQuery).Do(ctx); err != nil {
 				return err
 			}
@@ -201,7 +221,6 @@ func VisitAuthing(ctx context.Context, opts VisitAuthingOptions) (string, error)
 		return "", fmt.Errorf("click to app failed: %w", err)
 	}
 
-	//newTabCtx, newTabCancel := context.WithCancel(taskCtx)
 	newTabCtx, newTabCancel := chromedp.NewContext(taskCtx,
 		chromedp.WithTargetID(<-newTabCh),
 	)
